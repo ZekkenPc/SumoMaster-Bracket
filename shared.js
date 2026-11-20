@@ -14,22 +14,31 @@ const SM=(()=>{
       seed:pairs([["CJF Robotics","#1","Las Chivas","#16"],["Balmomikes","#8","Bendecidos","#9"],["RS Zamus","#4","Wolf Bots","#13"],["Virgenes FC","#5","Meca Boys","#12"],["Arjusu","#2","Nitro Bots","#15"],["Turbo Sordo","#7","Cuervos","#10"],["Rayo Joaquín","#3","RoboCop FC","#14"],["Los Rufianes","#6","Muppets","#11"]])}
   };
   const fresh=k=>{const m=META[k],sz=[];for(let n=m.n;n>=1;n>>=1)sz.push(n);
-    return{tags:m.seed.map(x=>x[1]),rounds:sz.map((n,r)=>Array.from({length:n},(_,i)=>r?"":m.seed[i][0])),scores:sz.map(n=>Array(n).fill(null))}};
+    return{tags:m.seed.map(x=>x[1]),rounds:sz.map((n,r)=>Array.from({length:n},(_,i)=>r?"":m.seed[i][0])),scores:sz.map(n=>Array(n).fill(null)),third:{w:"",sa:null,sb:null,k:"|"}}};
   const valid=(k,x)=>x&&x.rounds&&x.scores&&x.tags&&x.rounds.length===META[k].stages.length;
   const load=()=>{let s=null;try{s=JSON.parse(localStorage.getItem(KEY))}catch(e){}
-    const o={};for(const k in META)o[k]=valid(k,s&&s[k])?s[k]:fresh(k);return o};
+    const o={};for(const k in META)o[k]=valid(k,s&&s[k])?norm(s[k]):fresh(k);return o};
   const save=S=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}};
   const clear=(t,r,i)=>{const R=t.rounds,old=R[r][i];R[r][i]="";t.scores[r][i]=null;
     if(r+1<R.length&&old&&R[r+1][i>>1]===old)clear(t,r+1,i>>1)};
+  /* perdedores de las dos semifinales = combate por el 3.er lugar */
+  const thirdPair=t=>{const R=t.rounds,L=R.length,s=R[L-3],f=R[L-2];
+    const lose=mi=>{const w=f[mi];if(!w)return"";const x=s[2*mi],y=s[2*mi+1];return w===x?y:(w===y?x:"")};
+    return[lose(0),lose(1)]};
+  const fixThird=t=>{const k=thirdPair(t).join("|");if(!t.third||t.third.k!==k)t.third={w:"",sa:null,sb:null,k}};
+  const norm=x=>{if(!x.third)x.third={w:"",sa:null,sb:null,k:""};fixThird(x);return x};
+  const setThird=(t,i)=>{const n=thirdPair(t)[i];if(!n)return false;
+    if(t.third.w===n){t.third.w="";return"undo"}t.third.w=n;return"ok"};
   /* devuelve "ok" (avanzó), "undo" (se retiró) o false */
   const advance=(t,r,i)=>{const R=t.rounds,n=R[r][i];if(!n||r>=R.length-1)return false;
-    const ni=i>>1,cur=R[r+1][ni];
-    if(cur===n){clear(t,r+1,ni);return"undo"}
-    if(cur)clear(t,r+1,ni);
-    R[r+1][ni]=n;return"ok"};
-  const rename=(t,a,b)=>t.rounds.forEach(rd=>rd.forEach((n,i)=>{if(n===a)rd[i]=b}));
+    const ni=i>>1,cur=R[r+1][ni];let res;
+    if(cur===n){clear(t,r+1,ni);res="undo"}
+    else{if(cur)clear(t,r+1,ni);R[r+1][ni]=n;res="ok"}
+    fixThird(t);return res};
+  const rename=(t,a,b)=>{t.rounds.forEach(rd=>rd.forEach((n,i)=>{if(n===a)rd[i]=b}));
+    if(t.third&&t.third.w===a)t.third.w=b;t.third.k=thirdPair(t).join("|")};
   const reach=(t,n)=>{let m=-1;t.rounds.forEach((rd,r)=>{if(rd.includes(n))m=r});return m};
-  const resetProgress=t=>{t.rounds.forEach((rd,r)=>{if(r)rd.fill("")});t.scores.forEach(s=>s.fill(null))};
+  const resetProgress=t=>{t.rounds.forEach((rd,r)=>{if(r)rd.fill("")});t.scores.forEach(s=>s.fill(null));t.third={w:"",sa:null,sb:null,k:""};fixThird(t)};
 
   const CK="sumomasters_cfg";
   const cfg=()=>{let c={};try{c=JSON.parse(localStorage.getItem(CK))||{}}catch(e){}return{live:c.live!==false,gold:c.gold!==false,zap:c.zap!==false}};
@@ -57,5 +66,5 @@ const SM=(()=>{
     })();
   }
   const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-  return{CK,cfg,setCfg,META,fresh,load,save,advance,rename,reach,resetProgress,zap,esc,valid};
+  return{CK,cfg,setCfg,thirdPair,setThird,norm,META,fresh,load,save,advance,rename,reach,resetProgress,zap,esc,valid};
 })();

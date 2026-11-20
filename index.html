@@ -38,12 +38,30 @@ let ACT=null,S=SM.load(),k=KS.includes(location.hash.slice(1))?location.hash.sli
 
 /* primer combate (en orden de llave) con los dos robots definidos y sin resultado */
 function active(t,m){
-  const R=t.rounds,L=m.stages.length;
-  for(let r=0;r<L-1;r++)for(let mi=0;mi<R[r].length/2;mi++)
-    if(R[r][2*mi]&&R[r][2*mi+1]&&!R[r+1][mi])return{r,mi};
+  const R=t.rounds,L=m.stages.length,p=SM.thirdPair(t);
+  for(let r=0;r<L-1;r++){
+    if(r===L-2&&p[0]&&p[1]&&!t.third.w)return{r:"third",mi:0};
+    for(let mi=0;mi<R[r].length/2;mi++)
+      if(R[r][2*mi]&&R[r][2*mi+1]&&!R[r+1][mi])return{r,mi};
+  }
   return null;
 }
-const lbl=(m,r,mi)=>r===m.stages.length-2?"Gran final":m.sh[r]+" "+(mi+1);
+const lbl=(m,r,mi)=>r==="third"?"Tercer lugar":r===m.stages.length-2?"Gran final":m.sh[r]+" "+(mi+1);
+const stOf=(m,r)=>r==="third"?m.stages.length-2:r;                 /* etapa que muestra ese combate */
+const SN=(m,i)=>i===m.stages.length-2?"Tercer lugar y final":m.stages[i];
+const pairOf=(t,a)=>a.r==="third"?SM.thirdPair(t):[t.rounds[a.r][2*a.mi],t.rounds[a.r][2*a.mi+1]];
+function slot3(m,t,i){
+  const p=SM.thirdPair(t),n=p[i],op=p[i^1],w=t.third.w;
+  const cls=!n?"t":(w===n?"w":(w&&w===op?"l":""));
+  const tag=n?(t.tags[t.rounds[0].indexOf(n)]||""):("Pierde semi "+(i+1));
+  const sc=i?t.third.sb:t.third.sa;
+  const g=m.soccer&&n?`<span class="gs"><button data-g="-1">−</button><span class="sc">${sc==null?"–":sc}</span><button data-g="1">+</button></span>`:"";
+  return `<div class="slot ${cls}" data-r="third" data-i="${i}">${tag?`<em>${esc(tag)}</em>`:""}<b class="nm">${n?esc(n):"Por definir"}</b>${g}</div>`;
+}
+function match3(m,t){
+  const live=SM.cfg().live&&ACT&&ACT.r==="third";
+  return `<div class="mw third ${live?"fight":""}"><div class="mn third"><div class="lk">🥉 Tercer lugar${live?" · ⚡ EN COMBATE":""}</div>${slot3(m,t,0)}${slot3(m,t,1)}</div></div>`;
+}
 function slot(m,t,r,i){
   const R=t.rounds,n=R[r][i],nx=R[r+1]?R[r+1][i>>1]:"",op=R[r][i^1];
   const cls=!n?"t":(nx&&nx===n?"w":(nx&&nx===op?"l":""));
@@ -59,12 +77,12 @@ function match(m,t,r,mi){
 }
 function champ(m,t){
   const n=t.rounds[t.rounds.length-1][0];
-  return `<div class="champ"><div class="tr">🏆</div><small>// CAMPEÓN ${m.title.toUpperCase()}</small><div class="nm">${n?esc(n):"Por definir"}</div></div>`;
+  return `<div class="champ"><div class="tr">🏆</div><small>// CAMPEÓN ${m.title.toUpperCase()}</small><div class="nm">${n?esc(n):"Por definir"}</div>${t.third&&t.third.w?`<div class="third-line">🥉 3.er lugar: ${esc(t.third.w)}</div>`:""}</div>`;
 }
 function stageHTML(m,t,r){
   const L=m.stages.length;
-  if(r===L-1)return `<section id="c${r}"><h3 class="st">${m.stages[r]}</h3>${champ(m,t)}</section>`;
-  return `<section class="col" id="c${r}"><h3 class="st">${m.stages[r]}</h3>${t.rounds[r].map((_,i)=>i%2?"":match(m,t,r,i>>1)).join("")}</section>`;
+  if(r===L-1)return `<section id="c${r}"><h3 class="st">${SN(m,r)}</h3>${champ(m,t)}</section>`;
+  return `<section class="col" id="c${r}"><h3 class="st">${SN(m,r)}</h3>${t.rounds[r].map((_,i)=>i%2?"":match(m,t,r,i>>1)).join("")}${r===L-2?match3(m,t):""}</section>`;
 }
 function render(){
   const m=SM.META[k],t=S[k],L=m.stages.length;
@@ -72,25 +90,35 @@ function render(){
   stg=Math.max(0,Math.min(stg,L-1));
   document.querySelectorAll("[data-k]").forEach(a=>a.classList.toggle("on",a.dataset.k===k));
   $("#goPart").href="participantes.html#"+k;
-  const fight=ACT?` · ⚡ ${lbl(m,ACT.r,ACT.mi)}: ${esc(t.rounds[ACT.r][2*ACT.mi])} vs ${esc(t.rounds[ACT.r][2*ACT.mi+1])}`:"";
-  $("#sub").innerHTML=`<span class="live"></span>${m.title} · ${mode==="stage"?m.stages[stg]:"Cuadro completo"}${fight}`;
-  $("#bar").innerHTML=`<div class="bar">${m.stages.map((n,i)=>`<span class="chip ${mode==="stage"&&i===stg?"on":""}" data-s="${i}">${n}</span>`).join("")}${ACT?`<span class="chip" id="goAct">⚡ Combate actual</span>`:""}<span class="chip" id="md">${mode==="stage"?"🧩 Cuadro completo":"🎯 Una etapa"}</span></div>`;
+  const pr=ACT?pairOf(t,ACT):[],fight=ACT?` · ⚡ ${lbl(m,ACT.r,ACT.mi)}: ${esc(pr[0])} vs ${esc(pr[1])}`:"";
+  $("#sub").innerHTML=`<span class="live"></span>${m.title} · ${mode==="stage"?SN(m,stg):"Cuadro completo"}${fight}`;
+  $("#bar").innerHTML=`<div class="bar">${m.stages.map((n,i)=>`<span class="chip ${mode==="stage"&&i===stg?"on":""}" data-s="${i}">${SN(m,i)}</span>`).join("")}${ACT?`<span class="chip" id="goAct">⚡ Combate actual</span>`:""}<span class="chip" id="md">${mode==="stage"?"🧩 Cuadro completo":"🎯 Una etapa"}</span></div>`;
   let h;
   if(mode==="stage"){
-    h=stg===L-1?stageHTML(m,t,stg):`<h3 class="st">${m.stages[stg]}</h3><div class="sgrid">${t.rounds[stg].map((_,i)=>i%2?"":match(m,t,stg,i>>1)).join("")}</div>`;
+    h=stg===L-1?stageHTML(m,t,stg):`<h3 class="st">${SN(m,stg)}</h3><div class="sgrid">${stg===L-2?match3(m,t):""}${t.rounds[stg].map((_,i)=>i%2?"":match(m,t,stg,i>>1)).join("")}</div>`;
   }else h=`<div class="bracket" id="br">${m.stages.map((_,r)=>stageHTML(m,t,r)).join("")}</div>`;
-  $("#view").innerHTML=h+`<p class="leg">Clic en un robot = avanza a la siguiente fase (clic otra vez = deshacer). ← → cambian de etapa.${m.soccer?" Usa − / + para los goles.":""}</p>`;
+  $("#view").innerHTML=h+`<p class="leg">Clic en un robot = pasa a la siguiente fase (en el 3.er lugar = gana el bronce) (clic otra vez = deshacer). ← → cambian de etapa.${m.soccer?" Usa − / + para los goles.":""}</p>`;
 }
 document.addEventListener("click",e=>{
   const g=e.target.closest("[data-g]"),sl=e.target.closest(".slot"),ch=e.target.closest("[data-s]");
   const m=SM.META[k],t=S[k],L=m.stages.length;
-  if(g&&sl){const r=+sl.dataset.r,i=+sl.dataset.i,s=t.scores[r][i];
-    t.scores[r][i]=Math.max(0,(s==null?0:s)+(+g.dataset.g));SM.save(S);render();return}
+  if(g&&sl){const i=+sl.dataset.i,d=+g.dataset.g;
+    if(sl.dataset.r==="third"){const f=i?"sb":"sa",s=t.third[f];t.third[f]=Math.max(0,(s==null?0:s)+d)}
+    else{const r=+sl.dataset.r,s=t.scores[r][i];t.scores[r][i]=Math.max(0,(s==null?0:s)+d)}
+    SM.save(S);render();return}
+  if(sl&&sl.dataset.r==="third"&&e.target.closest("#view")){
+    const i=+sl.dataset.i,pa=ACT,res=SM.setThird(t,i);if(!res)return;
+    SM.save(S);const na=active(t,m);
+    if(pa&&pa.r==="third"&&na&&mode==="stage")stg=stOf(m,na.r);
+    render();
+    if(pa&&pa.r==="third")setTimeout(()=>document.querySelector(".mw.fight")?.scrollIntoView({behavior:"smooth",block:"center",inline:"center"}),80);
+    if(res==="ok")SM.zap(document.querySelector(`.slot[data-r="third"][data-i="${i}"]`)?.closest(".mn"));
+    return}
   if(sl&&sl.dataset.r!==undefined&&e.target.closest("#view")){
     const r=+sl.dataset.r,i=+sl.dataset.i,pa=ACT,res=SM.advance(t,r,i);if(!res)return;
     SM.save(S);
     const follow=pa&&pa.r===r&&pa.mi===(i>>1),na=active(t,m);
-    if(follow&&na&&mode==="stage")stg=na.r;
+    if(follow&&na&&mode==="stage")stg=stOf(m,na.r);
     render();
     if(follow)setTimeout(()=>document.querySelector(".mw.fight")?.scrollIntoView({behavior:"smooth",block:"center",inline:"center"}),80);
     if(res==="ok"){
@@ -104,7 +132,7 @@ document.addEventListener("click",e=>{
   if(ch){stg=+ch.dataset.s;
     if(mode==="stage")render();else document.getElementById("c"+stg)?.scrollIntoView({behavior:"smooth",inline:"start",block:"nearest"});
     document.querySelectorAll(".bar .chip[data-s]").forEach(c=>c.classList.toggle("on",mode==="stage"&&+c.dataset.s===stg));return}
-  if(e.target.closest("#goAct")&&ACT){stg=ACT.r;render();
+  if(e.target.closest("#goAct")&&ACT){stg=stOf(m,ACT.r);render();
     setTimeout(()=>document.querySelector(".mw.fight")?.scrollIntoView({behavior:"smooth",block:"center",inline:"center"}),80);return}
   if(e.target.id==="md"){mode=mode==="stage"?"full":"stage";render()}
 });

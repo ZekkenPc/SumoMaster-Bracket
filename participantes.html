@@ -48,7 +48,7 @@ let S=SM.load(),k=KS.includes(location.hash.slice(1))?location.hash.slice(1):"me
 function toast(t){const o=$("#toast");o.textContent=t;o.classList.add("show");clearTimeout(toast.h);toast.h=setTimeout(()=>o.classList.remove("show"),1800)}
 function row(m,t,i){
   const n=t.rounds[0][i],r=SM.reach(t,n),L=m.stages.length;
-  const b=r===L-1?"🏆 Campeón":(r>0?"▶ Llegó a "+m.stages[r]:"");
+  const b=r===L-1?"🏆 Campeón":(t.third&&t.third.w===n?"🥉 3.er lugar":(r>0?"▶ Llegó a "+m.stages[r]:""));
   return `<div class="pr"><input class="in tag" data-i="${i}" data-f="tag" value="${esc(t.tags[i])}" title="Posición / bloque"><input class="in name" data-i="${i}" data-f="name" value="${esc(n)}"><span class="badge">${b}</span></div>`;
 }
 function render(){
@@ -71,7 +71,7 @@ $("#bReset").onclick=()=>{if(confirm("¿Borrar el avance y los goles de este tor
 $("#bSeed").onclick=()=>{if(confirm("¿Restaurar los nombres de ejemplo de este torneo? Se pierde el avance.")){S[k]=SM.fresh(k);SM.save(S);toast("Restaurado");render()}};
 $("#bExp").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(S,null,2)],{type:"application/json"}));a.download="sumomasters-respaldo.json";a.click()};
 $("#imp").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
-  r.onload=()=>{try{const d=JSON.parse(r.result);for(const q of KS)if(!SM.valid(q,d[q]))throw 0;S=d;SM.save(S);toast("✔ Respaldo importado");render()}catch(x){toast("⚠ Archivo no válido")}};r.readAsText(f)};
+  r.onload=()=>{try{const d=JSON.parse(r.result);for(const q of KS)if(!SM.valid(q,d[q]))throw 0;S=d;for(const q of KS)SM.norm(S[q]);SM.save(S);toast("✔ Respaldo importado");render()}catch(x){toast("⚠ Archivo no válido")}};r.readAsText(f)};
 document.querySelectorAll(".fxp input").forEach(i=>{
   i.checked=SM.cfg()[i.dataset.c];
   i.onchange=()=>{const c=SM.cfg();c[i.dataset.c]=i.checked;SM.setCfg(c);toast(i.checked?"✔ Efecto activado":"Efecto desactivado")};
