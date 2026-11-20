@@ -55,7 +55,7 @@ function slot(m,t,r,i){
 function match(m,t,r,mi){
   const L=m.stages.length,fin=r===L-2,C=SM.cfg();
   const live=C.live&&ACT&&ACT.r===r&&ACT.mi===mi,gold=live&&fin&&C.gold;
-  return `<div class="mw ${live?"live":""} ${gold?"gold":""}"><div class="mn ${fin?"fin":""}"><div class="lk">${fin?"⚔ Gran final":m.sh[r]+" "+(mi+1)}${live?" · ⚡ EN COMBATE":""}</div>${slot(m,t,r,2*mi)}${slot(m,t,r,2*mi+1)}</div></div>`;
+  return `<div class="mw ${live?"fight":""} ${gold?"gold":""}"><div class="mn ${fin?"fin":""}"><div class="lk">${fin?"⚔ Gran final":m.sh[r]+" "+(mi+1)}${live?" · ⚡ EN COMBATE":""}</div>${slot(m,t,r,2*mi)}${slot(m,t,r,2*mi+1)}</div></div>`;
 }
 function champ(m,t){
   const n=t.rounds[t.rounds.length-1][0];
@@ -92,7 +92,7 @@ document.addEventListener("click",e=>{
     const follow=pa&&pa.r===r&&pa.mi===(i>>1),na=active(t,m);
     if(follow&&na&&mode==="stage")stg=na.r;
     render();
-    if(follow)setTimeout(()=>document.querySelector(".mw.live")?.scrollIntoView({behavior:"smooth",block:"center",inline:"center"}),80);
+    if(follow)setTimeout(()=>document.querySelector(".mw.fight")?.scrollIntoView({behavior:"smooth",block:"center",inline:"center"}),80);
     if(res==="ok"){
       SM.zap(document.querySelector(`.slot[data-r="${r}"][data-i="${i}"]`)?.closest(".mn"));
       if(r===L-2){
@@ -105,7 +105,7 @@ document.addEventListener("click",e=>{
     if(mode==="stage")render();else document.getElementById("c"+stg)?.scrollIntoView({behavior:"smooth",inline:"start",block:"nearest"});
     document.querySelectorAll(".bar .chip[data-s]").forEach(c=>c.classList.toggle("on",mode==="stage"&&+c.dataset.s===stg));return}
   if(e.target.closest("#goAct")&&ACT){stg=ACT.r;render();
-    setTimeout(()=>document.querySelector(".mw.live")?.scrollIntoView({behavior:"smooth",block:"center",inline:"center"}),80);return}
+    setTimeout(()=>document.querySelector(".mw.fight")?.scrollIntoView({behavior:"smooth",block:"center",inline:"center"}),80);return}
   if(e.target.id==="md"){mode=mode==="stage"?"full":"stage";render()}
 });
 const clean=()=>document.body.classList.toggle("clean"),full=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
@@ -125,7 +125,7 @@ render();
     const mx=(a+c)/2+(Math.random()-.5)*disp,my=(b+d)/2+(Math.random()-.5)*disp;
     bolt(a,b,mx,my,disp/2,col,w);bolt(mx,my,c,d,disp/2,col,w)};
   function tick(){
-    const el=document.querySelector(".mw.live .mn"),gold=!!document.querySelector(".mw.live.gold");
+    const el=document.querySelector(".mw.fight .mn"),gold=!!document.querySelector(".mw.fight.gold");
     x.clearRect(0,0,cv.width,cv.height);
     if(el&&SM.cfg().live){
       const b=el.getBoundingClientRect(),n=gold?7:3,cols=gold?["#fcee0a","#ffb800","#fff7b0"]:["#00f3ff","#ff007f","#ffffff"];
