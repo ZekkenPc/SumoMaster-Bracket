@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SUMOMASTERS // Llaves</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@600;800;900&family=Rajdhani:wght@600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="shared.css">
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+</head>
+<body class="sp">
+<canvas id="lightning-overlay"></canvas>
+<canvas id="fx"></canvas>
+<div class="floor"></div><div class="beam"></div>
+<header>
+  <div class="logo" id="logo" title="Clic: salir del modo limpio · tecla C: activar/desactivar">
+    <i>⚡</i>
+    <div>
+      <h1 class="glitch" data-t="SUMOMASTERS">SUMO<span>MASTERS</span></h1>
+      <p id="sub"></p>
+    </div>
+  </div>
+  <div class="ctrls">
+    <a class="btn" data-k="megasumo" href="#megasumo">Megasumo</a>
+    <a class="btn" data-k="minisumo" href="#minisumo">Minisumo</a>
+    <a class="btn" data-k="robo-soccer" href="#robo-soccer">Robo Soccer</a>
+    <a class="btn y" id="goPart" href="participantes.html">👥 Participantes</a>
+    <button class="btn y" id="bClean">🧼 Limpio (C)</button>
+    <button class="btn y" id="bFull">⛶ Pantalla (F)</button>
+  </div>
+</header>
+<main><div id="bar"></div><div id="view"></div></main>
+<div class="sponsors" aria-label="Patrocinadores"><div class="sp-track" id="spTrack"></div></div>
+<script src="shared.js"></script>
+<script>
+const $=s=>document.querySelector(s),KS=Object.keys(SM.META),esc=SM.esc;
+let ACT=null,S=SM.load(),k=KS.includes(location.hash.slice(1))?location.hash.slice(1):"megasumo",mode="stage",stg=0;
+
+/* primer combate (en orden de llave) con los dos robots definidos y sin resultado */
+function active(t,m){
+  const R=t.rounds,L=m.stages.length;
+  for(let r=0;r<L-1;r++)for(let mi=0;mi<R[r].length/2;mi++)
+    if(R[r][2*mi]&&R[r][2*mi+1]&&!R[r+1][mi])return{r,mi};
+  return null;
+}
+const lbl=(m,r,mi)=>r===m.stages.length-2?"Gran final":m.sh[r]+" "+(mi+1);
+function slot(m,t,r,i){
+  const R=t.rounds,n=R[r][i],nx=R[r+1]?R[r+1][i>>1]:"",op=R[r][i^1];
+  const cls=!n?"t":(nx&&nx===n?"w":(nx&&nx===op?"l":""));
+  const tag=n?(t.tags[R[0].indexOf(n)]||""):("Gana "+m.sh[r-1]+" "+(i+1));
+  const sc=t.scores[r][i];
+  const g=m.soccer&&n?`<span class="gs"><button data-g="-1">−</button><span class="sc">${sc==null?"–":sc}</span><button data-g="1">+</button></span>`:"";
+  return `<div class="slot ${cls}" data-r="${r}" data-i="${i}">${tag?`<em>${esc(tag)}</em>`:""}<b class="nm">${n?esc(n):"Por definir"}</b>${g}</div>`;
+}
+function match(m,t,r,mi){
+  const L=m.stages.length,fin=r===L-2,C=SM.cfg();
+  const live=C.live&&ACT&&ACT.r===r&&ACT.mi===mi,gold=live&&fin&&C.gold;
+  return `<div class="mw ${live?"live":""} ${gold?"gold":""}"><div class="mn ${fin?"fin":""}"><div class="lk">${fin?"⚔ Gran final":m.sh[r]+" "+(mi+1)}${live?" · ⚡ EN COMBATE":""}</div>${slot(m,t,r,2*mi)}${slot(m,t,r,2*mi+1)}</div></div>`;
+}
+function champ(m,t){
+  const n=t.rounds[t.rounds.length-1][0];
+  return `<div class="champ"><div class="tr">🏆</div><small>// CAMPEÓN ${m.title.toUpperCase()}</small><div class="nm">${n?esc(n):"Por definir"}</div></div>`;
+}
+function stageHTML(m,t,r){
+  const L=m.stages.length;
+  if(r===L-1)return `<section id="c${r}"><h3 class="st">${m.stages[r]}</h3>${champ(m,t)}</section>`;
+  return `<section class="col" id="c${r}"><h3 class="st">${m.stages[r]}</h3>${t.rounds[r].map((_,i)=>i%2?"":match(m,t,r,i>>1)).join("")}</section>`;
+}
+function render(){
+  const m=SM.META[k],t=S[k],L=m.stages.length;
+  ACT=active(t,m);
+  stg=Math.max(0,Math.min(stg,L-1));
+  document.querySelectorAll("[data-k]").forEach(a=>a.classList.toggle("on",a.dataset.k===k));
+  $("#goPart").href="participantes.html#"+k;
+  const fight=ACT?` · ⚡ ${lbl(m,ACT.r,ACT.mi)}: ${esc(t.rounds[ACT.r][2*ACT.mi])} vs ${esc(t.rounds[ACT.r][2*ACT.mi+1])}`:"";
+  $("#sub").innerHTML=`<span class="live"></span>${m.title} · ${mode==="stage"?m.stages[stg]:"Cuadro completo"}${fight}`;
+  $("#bar").innerHTML=`<div class="bar">${m.stages.map((n,i)=>`<span class="chip ${mode==="stage"&&i===stg?"on":""}" data-s="${i}">${n}</span>`).join("")}${ACT?`<span class="chip" id="goAct">⚡ Combate actual</span>`:""}<span class="chip" id="md">${mode==="stage"?"🧩 Cuadro completo":"🎯 Una etapa"}</span></div>`;
+  let h;
+  if(mode==="stage"){
+    h=stg===L-1?stageHTML(m,t,stg):`<h3 class="st">${m.stages[stg]}</h3><div class="sgrid">${t.rounds[stg].map((_,i)=>i%2?"":match(m,t,stg,i>>1)).join("")}</div>`;
+  }else h=`<div class="bracket" id="br">${m.stages.map((_,r)=>stageHTML(m,t,r)).join("")}</div>`;
+  $("#view").innerHTML=h+`<p class="leg">Clic en un robot = avanza a la siguiente fase (clic otra vez = deshacer). ← → cambian de etapa.${m.soccer?" Usa − / + para los goles.":""}</p>`;
+}
+document.addEventListener("click",e=>{
+  const g=e.target.closest("[data-g]"),sl=e.target.closest(".slot"),ch=e.target.closest("[data-s]");
+  const m=SM.META[k],t=S[k],L=m.stages.length;
+  if(g&&sl){const r=+sl.dataset.r,i=+sl.dataset.i,s=t.scores[r][i];
+    t.scores[r][i]=Math.max(0,(s==null?0:s)+(+g.dataset.g));SM.save(S);render();return}
+  if(sl&&sl.dataset.r!==undefined&&e.target.closest("#view")){
+    const r=+sl.dataset.r,i=+sl.dataset.i,pa=ACT,res=SM.advance(t,r,i);if(!res)return;
+    SM.save(S);
+    const follow=pa&&pa.r===r&&pa.mi===(i>>1),na=active(t,m);
+    if(follow&&na&&mode==="stage")stg=na.r;
+    render();
+    if(follow)setTimeout(()=>document.querySelector(".mw.live")?.scrollIntoView({behavior:"smooth",block:"center",inline:"center"}),80);
+    if(res==="ok"){
+      SM.zap(document.querySelector(`.slot[data-r="${r}"][data-i="${i}"]`)?.closest(".mn"));
+      if(r===L-2){
+        if(window.confetti)confetti({particleCount:240,spread:120,origin:{y:.6},colors:["#00f3ff","#ff007f","#fcee0a"]});
+        setTimeout(()=>{SM.zap(null);stg=L-1;render()},1300);
+      }
+    }
+    return}
+  if(ch){stg=+ch.dataset.s;
+    if(mode==="stage")render();else document.getElementById("c"+stg)?.scrollIntoView({behavior:"smooth",inline:"start",block:"nearest"});
+    document.querySelectorAll(".bar .chip[data-s]").forEach(c=>c.classList.toggle("on",mode==="stage"&&+c.dataset.s===stg));return}
+  if(e.target.closest("#goAct")&&ACT){stg=ACT.r;render();
+    setTimeout(()=>document.querySelector(".mw.live")?.scrollIntoView({behavior:"smooth",block:"center",inline:"center"}),80);return}
+  if(e.target.id==="md"){mode=mode==="stage"?"full":"stage";render()}
+});
+const clean=()=>document.body.classList.toggle("clean"),full=()=>document.fullscreenElement?document.exitFullscreen():document.documentElement.requestFullscreen();
+$("#bClean").onclick=clean;$("#bFull").onclick=full;$("#logo").onclick=()=>{if(document.body.classList.contains("clean"))clean()};
+addEventListener("keydown",e=>{
+  if(e.key==="ArrowRight"){stg++;render()}else if(e.key==="ArrowLeft"){stg--;render()}
+  else if(e.key==="c"||e.key==="C")clean();else if(e.key==="f"||e.key==="F")full();
+});
+addEventListener("hashchange",()=>{const h=location.hash.slice(1);if(KS.includes(h)){k=h;stg=0;render()}});
+addEventListener("storage",e=>{if(e.key==="sumomasters_v2"){S=SM.load();render()}else if(e.key===SM.CK)render()});
+render();
+/* ⚡ rayos que saltan alrededor del combate actual (neón; dorados en la final) */
+(()=>{const cv=document.getElementById("fx"),x=cv.getContext("2d");
+  const size=()=>{cv.width=innerWidth;cv.height=innerHeight};size();addEventListener("resize",size);
+  const bolt=(a,b,c,d,disp,col,w)=>{
+    if(disp<3){x.strokeStyle=col;x.lineWidth=w;x.shadowColor=col;x.shadowBlur=16;x.beginPath();x.moveTo(a,b);x.lineTo(c,d);x.stroke();return}
+    const mx=(a+c)/2+(Math.random()-.5)*disp,my=(b+d)/2+(Math.random()-.5)*disp;
+    bolt(a,b,mx,my,disp/2,col,w);bolt(mx,my,c,d,disp/2,col,w)};
+  function tick(){
+    const el=document.querySelector(".mw.live .mn"),gold=!!document.querySelector(".mw.live.gold");
+    x.clearRect(0,0,cv.width,cv.height);
+    if(el&&SM.cfg().live){
+      const b=el.getBoundingClientRect(),n=gold?7:3,cols=gold?["#fcee0a","#ffb800","#fff7b0"]:["#00f3ff","#ff007f","#ffffff"];
+      for(let i=0;i<n;i++){
+        const side=Math.floor(Math.random()*4),t=Math.random();
+        let sx,sy,dx,dy;
+        if(side===0){sx=b.left+t*b.width;sy=b.top;dx=0;dy=-1}
+        else if(side===1){sx=b.left+t*b.width;sy=b.bottom;dx=0;dy=1}
+        else if(side===2){sx=b.left;sy=b.top+t*b.height;dx=-1;dy=0}
+        else{sx=b.right;sy=b.top+t*b.height;dx=1;dy=0}
+        const len=(gold?90:60)+Math.random()*(gold?120:70);
+        bolt(sx,sy,sx+dx*len+(Math.random()-.5)*70*Math.abs(dy),sy+dy*len+(Math.random()-.5)*70*Math.abs(dx),40,cols[i%3],gold?2.8:2);
+      }
+      setTimeout(()=>x.clearRect(0,0,cv.width,cv.height),150);
+    }
+    setTimeout(tick,gold?650:1300+Math.random()*700);
+  }
+  tick();
+})();
+/* cintilla: logos en bucle continuo (se duplica el grupo para que no haya salto) */
+(()=>{const L=["img/sponsor-uteq.png","img/sponsor-lubna.png"];
+  let g="";for(let i=0;i<5;i++)L.forEach(src=>g+=`<img src="${src}" alt="Patrocinador">`);
+  document.getElementById("spTrack").innerHTML=g+g})();
+</script>
+</body>
+</html>
